@@ -40,8 +40,9 @@ button:focus-visible{outline:3px solid var(--suit);outline-offset:3px}
 #mute{right:10px}#pause{right:58px}#fs{right:106px}
 #shop{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;padding:8px 10px 10px;justify-content:center;flex-wrap:wrap}
 body.land #shop{left:10px;right:auto;top:76px;bottom:auto;flex-direction:column;flex-wrap:nowrap;width:176px;padding:0;gap:8px;justify-content:flex-start}
-body.land .sb{flex:none;max-width:none;width:176px;padding:5px 9px}
-body.land #shop{gap:6px}
+body.land .sb{flex:none;max-width:none;width:176px;padding:4px 9px}
+body.land #shop{gap:5px;top:64px}
+body:not(.land) .sb b{overflow:hidden;text-overflow:ellipsis;max-width:100%}
 body:not(.land) #shop{flex-wrap:nowrap;gap:5px;padding:6px 6px 8px}
 body:not(.land) .sb{flex:1 1 0;flex-direction:column;gap:1px;padding:6px 2px;text-align:center;border-radius:14px}
 body:not(.land) .sb small{display:none}
@@ -78,7 +79,7 @@ body.land .rotate-hint{display:none}
 .mg{position:relative;width:66px;height:66px;border-radius:50%;color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;overflow:hidden;
   box-shadow:0 5px 0 rgba(0,0,0,.3);animation:mgIn .4s cubic-bezier(.2,1.6,.4,1)}
 .mg span{font-size:28px;position:relative;z-index:1}.mg small{font-size:11px;margin-top:2px;position:relative;z-index:1}
-.mg.fire{background:#ff5a2a}.mg.water{background:#2f9bff}.mg.wind{background:#34b886}
+.mg.whistle{background:#f5b301;text-shadow:0 1px 0 #9a6b00}.mg.fire{background:#ff5a2a}.mg.water{background:#2f9bff}.mg.wind{background:#34b886}
 .mg::after{content:'';position:absolute;inset:0;border-radius:50%;background:conic-gradient(rgba(20,30,55,.62) calc(var(--cd,0) * 1turn),transparent 0);pointer-events:none}
 .mg.ready{animation:mrdy 1s infinite alternate}
 @keyframes mrdy{from{box-shadow:0 5px 0 rgba(0,0,0,.3),0 0 0 3px #fff3b0}to{box-shadow:0 5px 0 rgba(0,0,0,.3),0 0 0 6px #fff3b0,0 0 18px #ffe98a}}
@@ -119,6 +120,7 @@ body.land .rotate-hint{display:none}
     <button class="sb" id="bTool"><span class="ic">🪓</span><span><b>도끼 강화</b><small id="tNext"></small></span><span class="cost" id="tCost"></span></button>
     <button class="sb wood" id="bShoe"><span class="ic">👟</span><span><b>신발 강화</b><small id="sNext"></small></span><span class="cost" id="sCost"></span></button>
     <button class="sb wood" id="bSpin"><span class="ic">🌀</span><span><b>회전 강화</b><small id="rNext"></small></span><span class="cost" id="rCost"></span></button>
+    <button class="sb wood" id="bWhistle"><span class="ic">📯</span><span><b id="wTitle">호루라기</b><small id="wNext"></small></span><span class="cost" id="wCost"></span></button>
   </div>
   <button class="sb hidden" id="bFight">🌙 바로 싸우기</button>
   <div id="magicBar"></div>
@@ -130,7 +132,7 @@ body.land .rotate-hint{display:none}
     <p>작은 캠핑 텐트에서 시작해요! 곰을 잡아 모은 돈으로 요새와 무기를 키우고, 나무를 캐서 요새 창고에 쌓으면 신발과 무기 회전을 강화할 수 있어요. 흰곰 무리가 쉬지 않고 몰려와요. 도끼질과 공격을 번갈아 하며 요새를 지켜라!</p>
     <button class="go" id="start">시작!</button>
     <p class="rotate-hint">🔄 버튼을 누르면 가로 화면으로 바뀌어요</p>
-    <p class="keys">키보드: 방향키·WASD 이동 · Space 모드 바꾸기 · E 던지기 · Q·R·F 마법 · G 분신술 · 1 요새 · 2 무기 · 3 도끼 · 4 신발 · 5 회전 강화</p>
+    <p class="keys">키보드: 방향키·WASD 이동 · Space 모드 바꾸기 · E 던지기 · Q·R·F 마법 · G 분신술 · V 호루라기 · 6 호루라기 제작/강화 · 1 요새 · 2 무기 · 3 도끼 · 4 신발 · 5 회전 강화</p>
   </div>
   <div class="over hidden" id="fsHint">
     <h2>꽉 채우기</h2>
@@ -352,6 +354,41 @@ function woodUp(key,costs,btn,name,icon,sub){
 }
 const upgradeShoe=()=>woodUp('shoe',SHOE_COST,'bShoe','신발','👟','더 빨리 달려요');
 const upgradeSpin=()=>woodUp('spin',SPIN_COST,'bSpin','회전','🌀','무기가 더 빨리 돌아요');
+/* ---------- 호루라기: 곰들이 시우를 따라오게 ---------- */
+const WH_MAKE=10,WH_COST=[15,22,30,40,52],WH_MAX=6;
+let whistleLv=0,whistleCd=0,whistleT=0,whistleBtn=null,whistleRing=0;
+const whistleDur=lv=>3*(1+.5*(lv-1));
+function upgradeWhistle(){
+  if(state!=='play')return;initAudio();
+  if(whistleLv>=WH_MAX)return;
+  const c=whistleLv===0?WH_MAKE:WH_COST[whistleLv-1];
+  if(storage<c){poor('bWhistle',true);return;}
+  storage-=c;whistleLv++;SFX.power();vib(40);const p=player;
+  addRing(p.x,p.y-40,80,'#ffd34d',.45,5);burst(p.x,p.y-40,14,['#ffd34d','#ffffff','#b97a45']);
+  if(whistleLv===1){
+    const b=document.createElement('button');b.className='mg whistle';b.setAttribute('aria-label','호루라기');
+    b.innerHTML='<span>📯</span><small>호루라기</small>';
+    b.addEventListener('pointerdown',ev=>{ev.preventDefault();ev.stopPropagation();blowWhistle();});
+    b.addEventListener('click',ev=>{if(ev.detail===0)blowWhistle();});
+    $('magicBar').prepend(b);whistleBtn=b;whistleCd=0;
+    showBanner('📯 호루라기 완성!','불면 곰들이 시우를 따라와요',2.2);
+  }else showBanner(`📯 호루라기 Lv ${whistleLv}!`,`곰이 ${whistleDur(whistleLv)}초 동안 따라와요`,1.8);
+  updateShop();
+}
+function blowWhistle(){
+  if(state!=='play'||!whistleLv||whistleCd>0)return;initAudio();
+  whistleT=whistleDur(whistleLv);whistleCd=THROW_CD;whistleRing=0;
+  castFX('255,220,80','📯 삐이익!',.55);
+  for(let i=0;i<7;i++)tone(2300+(i%2)*380,0,.06,'sine',.22,i*.055);tone(2600,2200,.4,'sine',.22,.4);
+  for(const e of enemies)if(!e.dead&&e.type==='charge'){e.mode='walk';e.st=0;}
+}
+function updateWhistle(dt){
+  if(whistleCd>0){whistleCd-=dt;if(whistleCd<=0){whistleCd=0;tone(1320,0,.15,'triangle',.24);}}
+  if(whistleT>0){whistleT-=dt;whistleRing-=dt;
+    if(whistleRing<=0){whistleRing=.45;addRing(player.x,player.y-35,160,'#ffd34d',.5,4);}
+    if(whistleT<=0){whistleT=0;addText(player.x,player.y-100,'호루라기 끝!',false,'#ffe28a');}}
+  if(whistleBtn){whistleBtn.style.setProperty('--cd',(whistleCd/THROW_CD).toFixed(3));whistleBtn.classList.toggle('ready',whistleCd<=0&&state==='play');}
+}
 let attackMode=false,orbAng=0,thrown=[],throwCd=0;const THROW_CD=10;
 /* ---------- 보스 보물 + 마법 ---------- */
 const RELIC={
@@ -677,7 +714,7 @@ function newPlayer(){return{x:HX,y:HY+90,hp:100,maxHp:100,speed:140,face:1,dirX:
 function newGame(){
   player=newPlayer();house={lv:1,hp:0,maxHp:0,shake:0,buildT:0};house.maxHp=houseMaxHp();house.hp=house.maxHp;
   fence={hp:0,max:0};towers=[];enemies=[];shots=[];items=[];traps=[];parts=[];texts=[];snowmen=[];bolts=[];
-  wood=0;coins=0;kills=0;hitstop=0;shakeAmt=0;slowT=0;winT=0;tokAng=0;wave=0;firstDay=true;reviveT=0;waveQueue=[];waveTime=0;battleT=0;trickle=0;calmT=0;seenKinds=new Set();thrown=[];throwCd=0;clones=[];heroCd=0;storage=0;relics=[];magics=[];slots=[];$('magicBar').innerHTML='';
+  wood=0;coins=0;kills=0;hitstop=0;shakeAmt=0;slowT=0;winT=0;tokAng=0;wave=0;firstDay=true;reviveT=0;waveQueue=[];waveTime=0;battleT=0;trickle=0;calmT=0;seenKinds=new Set();thrown=[];throwCd=0;clones=[];heroCd=0;whistleLv=0;whistleCd=0;whistleT=0;whistleBtn=null;storage=0;relics=[];magics=[];slots=[];$('magicBar').innerHTML='';
   plantTrees();buildDefenses();state='play';startBattle();updateShop();
 }
 const houseMaxHp=()=>160+house.lv*80;
@@ -771,6 +808,11 @@ function updateShop(){
     if(lv>=8){$(cid).textContent='최고!';$(nid).textContent=unit+' 최대';b.classList.add('poor');}
     else{const c=costs[lv-1];$(cid).textContent='🪵'+c;$(nid).textContent=`${unit} Lv${lv}→${lv+1}`;b.classList.toggle('poor',storage<c);}
   }
+  {const b=$('bWhistle');
+    if(whistleLv>=WH_MAX){$('wCost').textContent='최고!';$('wNext').textContent=`${whistleDur(whistleLv)}초 유지`;$('wTitle').textContent='호루라기';b.classList.add('poor');}
+    else{const c=whistleLv===0?WH_MAKE:WH_COST[whistleLv-1];$('wCost').textContent='🪵'+c;
+      $('wTitle').textContent='호루라기';
+      $('wNext').textContent=whistleLv===0?'만들기: 곰을 끌고 다녀요':`강화: ${whistleDur(whistleLv)}→${whistleDur(whistleLv+1)}초`;b.classList.toggle('poor',storage<c);}}
   const tb=$('bTool');
   if(player.tool>=6){$('tCost').textContent='최고!';$('tNext').textContent='전설 도끼';tb.classList.add('poor');}
   else{const c=TOOL_COST[player.tool-1];$('tCost').textContent='🪙'+c;$('tNext').textContent='다음: '+TOOL[player.tool].name;tb.classList.toggle('poor',coins<c);}
@@ -969,7 +1011,7 @@ function update(dt){
     if(alive)calmT=0;else calmT+=dt;
     setMusic(calmT>5?'day':'night');
   }
-  if(winT<=0){if(attackMode&&!thrown.length)orbitWeapons(dt);towerFire(dt);updateThrown(dt);updateMagic(dt);updateClones(dt);}
+  if(winT<=0){if(attackMode&&!thrown.length)orbitWeapons(dt);towerFire(dt);updateThrown(dt);updateMagic(dt);updateClones(dt);updateWhistle(dt);}
   // 적
   const hr=houseR();
   for(const e of enemies){
@@ -980,6 +1022,18 @@ function update(dt){
     let vx=0,vy=0;e.atk=false;
     const fenceUp=fence.max>0&&fence.hp>0&&!e.fly;
     const stopAt=fenceUp?FENCE_R+e.r*.6:hr+e.r;
+    if(whistleT>0&&winT<=0){
+      if(e.wasOut===undefined)e.wasOut=d>FENCE_R;
+      const px2=p.x-e.x,py2=p.y-e.y,pd2=Math.hypot(px2,py2)||1;
+      if(pd2>e.r+12){vx=px2/pd2*sp*1.15;vy=py2/pd2*sp*1.15;}
+      e.face=Math.sign(px2)||1;e.mode='walk';
+      e.x+=(vx+e.kx)*dt;e.y+=(vy+e.ky)*dt;
+      if(fenceUp&&e.wasOut){const hx2=e.x-HX,hy2=e.y-HY,hd=Math.hypot(hx2,hy2)||1,lim=FENCE_R+e.r*.6;if(hd<lim){e.x=HX+hx2/hd*lim;e.y=HY+hy2/hd*lim;}}
+      const dec2=Math.min(1,8*dt);e.kx-=e.kx*dec2;e.ky-=e.ky*dec2;
+      if(pd2<e.r+14)damagePlayer(e.dmg,e);
+      continue;
+    }
+    e.wasOut=undefined;
     if(d>stopAt){
       if(e.type==='charge'){
         e.st+=dt;
@@ -1526,6 +1580,7 @@ function drawEnemy(e){
     star(cx,cy-12,2.4*(1+Math.sin(tNow*6)*.2),tNow,'#ffffff');}
   if(e.trap>0||e.slow>0){ctx.strokeStyle='rgba(255,255,255,.95)';ctx.lineWidth=1.4;line(-24,-8,16,-36);line(-22,-34,18,-8);line(-28,-20,24,-20);}
   ctx.restore();
+  if(whistleT>0&&!e.ko&&e.speed){const k=Math.sin(tNow*8+e.x)*3;outlined('♪',e.x+8*sc,e.y-hop-50*sc+k,15,'#ffd34d',INK,4);}
   if(e.mode==='wind'&&!e.ko){const k=1+Math.sin(tNow*20)*.12;ctx.save();ctx.translate(e.x,e.y-hop-52*sc);ctx.scale(k,k);
     circ(0,0,11,'#ff5a5a','#ffffff',2.5);outlined('!',0,1,17,'#ffffff','#ff5a5a',0);ctx.restore();}
 }
@@ -1641,7 +1696,7 @@ const endJoy=e=>{if(joy&&e.pointerId===joy.id)joy=null;};
 ['pointerup','pointercancel','lostpointercapture'].forEach(t=>cvs.addEventListener(t,endJoy));
 const KM={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
 addEventListener('keydown',e=>{if(KM[e.code]){keys[KM[e.code]]=1;e.preventDefault();initAudio();}
-  else if(e.code==='Digit1')upgradeHouse();else if(e.code==='Digit2')upgradeHero();else if(e.code==='Digit3')upgradeTool();else if(e.code==='Digit4')upgradeShoe();else if(e.code==='Digit5')upgradeSpin();else if(e.code==='Space'){e.preventDefault();toggleMode();}else if(e.code==='KeyE'||e.code==='ShiftLeft'){throwWeapons();}else if(e.code==='KeyG'){castHero();}else if(e.code==='KeyQ'){castMagic(slots[0]);}else if(e.code==='KeyR'){castMagic(slots[1]);}else if(e.code==='KeyF'){castMagic(slots[2]);}});
+  else if(e.code==='Digit1')upgradeHouse();else if(e.code==='Digit2')upgradeHero();else if(e.code==='Digit3')upgradeTool();else if(e.code==='Digit4')upgradeShoe();else if(e.code==='Digit5')upgradeSpin();else if(e.code==='Space'){e.preventDefault();toggleMode();}else if(e.code==='KeyE'||e.code==='ShiftLeft'){throwWeapons();}else if(e.code==='KeyG'){castHero();}else if(e.code==='KeyV'){blowWhistle();}else if(e.code==='Digit6'){upgradeWhistle();}else if(e.code==='KeyQ'){castMagic(slots[0]);}else if(e.code==='KeyR'){castMagic(slots[1]);}else if(e.code==='KeyF'){castMagic(slots[2]);}});
 addEventListener('keyup',e=>{if(KM[e.code])keys[KM[e.code]]=0;});
 // 이동 중(다른 손가락이 화면을 누르는 중)에도 버튼이 바로 반응하도록 pointerdown 사용
 function tapBtn(id,fn){const el=$(id);
@@ -1662,7 +1717,7 @@ $('rot').addEventListener('click',()=>{rotPref=!rotPref;try{localStorage.setItem
 document.addEventListener('fullscreenchange',()=>setTimeout(resize,100));
 document.addEventListener('webkitfullscreenchange',()=>setTimeout(resize,100));
 addEventListener('orientationchange',()=>setTimeout(resize,200));
-tapBtn('bShoe',upgradeShoe);tapBtn('bSpin',upgradeSpin);
+tapBtn('bShoe',upgradeShoe);tapBtn('bSpin',upgradeSpin);tapBtn('bWhistle',upgradeWhistle);
 tapBtn('bHouse',upgradeHouse);
 tapBtn('bHero',upgradeHero);
 $('retry').addEventListener('click',()=>{initAudio();$('lose').classList.add('hidden');newGame();});
