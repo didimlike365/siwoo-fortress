@@ -122,7 +122,7 @@ body.land .rotate-hint{display:none}
     <button class="sb wood" id="bSpin"><span class="ic">🌀</span><span><b>회전 강화</b><small id="rNext"></small></span><span class="cost" id="rCost"></span></button>
     <button class="sb wood" id="bWhistle"><span class="ic">📯</span><span><b id="wTitle">호루라기</b><small id="wNext"></small></span><span class="cost" id="wCost"></span></button>
   </div>
-  <button class="sb hidden" id="bFight">🌙 바로 싸우기</button>
+  <button class="sb hidden" id="bFight">⚔️ 바로 싸우기</button>
   <div id="magicBar"></div>
   <button class="hidden" id="bHero2" aria-label="시우 분신술"><span>🦸</span><small>분신술</small></button>
   <button class="hidden" id="bThrow" aria-label="무기 던지기"><span>💥</span><small>던지기</small></button>
@@ -132,7 +132,7 @@ body.land .rotate-hint{display:none}
     <p>작은 캠핑 텐트에서 시작해요! 곰을 잡아 모은 돈으로 요새와 무기를 키우고, 나무를 캐서 요새 창고에 쌓으면 신발과 무기 회전을 강화할 수 있어요. 흰곰 무리가 쉬지 않고 몰려와요. 도끼질과 공격을 번갈아 하며 요새를 지켜라!</p>
     <button class="go" id="start">시작!</button>
     <p class="rotate-hint">🔄 버튼을 누르면 가로 화면으로 바뀌어요</p>
-    <p class="keys">키보드: 방향키·WASD 이동 · Space 모드 바꾸기 · E 던지기 · Q·R·F 마법 · G 분신술 · V 호루라기 · 6 호루라기 제작/강화 · 1 요새 · 2 무기 · 3 도끼 · 4 신발 · 5 회전 강화</p>
+    <p class="keys">키보드: 방향키·WASD 이동 · Space 모드 바꾸기 · E 던지기 · Q·R·F 마법 · G 분신술 · V 호루라기 · Enter 바로 싸우기 · 6 호루라기 제작/강화 · 1 요새 · 2 무기 · 3 도끼 · 4 신발 · 5 회전 강화</p>
   </div>
   <div class="over hidden" id="fsHint">
     <h2>꽉 채우기</h2>
@@ -741,8 +741,8 @@ function buildDefenses(){
 
 /* ---------- 낮과 밤 ---------- */
 function startBattle(){
-  phase='battle';nextWaveIn=6;
-  showBanner('⚔️ 악당이 온다!','서둘러 나무를 캐고 요새를 키워!',2.2);
+  phase='battle';nextWaveIn=30;
+  showBanner('☀️ 나무 캐는 시간!','30초 뒤에 곰이 몰려와요',2.4);
   SFX.warn();setMusic('night');setMode(false,true);updateShop();
 }
 function launchWave(n){
@@ -816,7 +816,7 @@ function updateShop(){
   const tb=$('bTool');
   if(player.tool>=6){$('tCost').textContent='최고!';$('tNext').textContent='전설 도끼';tb.classList.add('poor');}
   else{const c=TOOL_COST[player.tool-1];$('tCost').textContent='🪙'+c;$('tNext').textContent='다음: '+TOOL[player.tool].name;tb.classList.toggle('poor',coins<c);}
-  $('bFight').classList.add('hidden');
+  $('bFight').classList.toggle('hidden',!(state==='play'&&nextWaveIn>0&&winT<=0));
 }
 
 /* ---------- 효과 ---------- */
@@ -1002,12 +1002,17 @@ function update(dt){
   // 밤: 소환
   if(phase==='battle'&&winT<=0){
     waveTime+=dt;battleT+=dt;
-    if(wave<LAST_WAVE){nextWaveIn-=dt;if(nextWaveIn<=0){wave++;launchWave(wave);nextWaveIn=wave===4||wave===9?42:34;updateShop();}
-      if(wave>=1)trickle+=dt*(.2+battleT*.004);
+    if(nextWaveIn>0){nextWaveIn-=dt;
+      if(nextWaveIn<=0){nextWaveIn=0;wave++;launchWave(wave);setMode(true,true);updateShop();}}
+    else if(waveQueue.length){trickle+=dt*(.2+battleT*.004);
       while(trickle>=1){trickle--;const r=Math.random();spawnEnemy(r<.35?'fast':(wave>=2&&r<.55)?'bat':'snow',rand(0,Math.PI*2));}}
     while(waveQueue.length&&waveQueue[0].at<=waveTime){const q=waveQueue.shift();spawnEnemy(q.type,q.dir+rand(-.25,.25));}
     const alive=enemies.some(e=>!e.dead);
-    if(wave>=LAST_WAVE&&!waveQueue.length&&!alive){winT=2.4;slowT=1.2;setMusic('off');setTimeout(()=>SFX.clear(),300);}
+    if(nextWaveIn<=0&&wave>0&&!waveQueue.length&&!alive){
+      if(wave>=LAST_WAVE){winT=2.4;slowT=1.2;setMusic('off');setTimeout(()=>SFX.clear(),300);}
+      else{nextWaveIn=20;trickle=0;setMode(false,true);SFX.clear();
+        showBanner(`🎉 ${wave}번째 습격 막았다!`,'20초 동안 나무를 캐자',2.2);updateShop();}
+    }
     if(alive)calmT=0;else calmT+=dt;
     setMusic(calmT>5?'day':'night');
   }
@@ -1605,8 +1610,8 @@ function drawHUD(){
   outlined('🪵 '+storage,20,26,20,'#8a5a2e','#fff',0,'left');
   outlined('🪙 '+coins,20,52,22,'#c98a00','#fff',0,'left');
   let title,sub='';
-  title=`⚔️ 습격 ${wave}/${LAST_WAVE}`;
-  sub=wave<LAST_WAVE?`다음 습격까지 ${Math.ceil(Math.max(0,nextWaveIn))}초`:`남은 악당 ${waveQueue.length+enemies.filter(e=>!e.dead).length}`;
+  if(nextWaveIn>0){title=`☀️ 나무 캐는 시간 ${Math.ceil(nextWaveIn)}초`;sub=`다음: ${wave+1}번째 습격 (총 ${LAST_WAVE})`;}
+  else{title=`⚔️ 습격 ${wave}/${LAST_WAVE}`;sub=`남은 곰 ${waveQueue.length+enemies.filter(e=>!e.dead).length}`;}
   outlined(title,W/2,30,24,'#ffffff',INK,6);outlined(sub,W/2,56,15,'#ffffff',INK,4);
   const boss=enemies.find(e=>e.boss&&!e.dead);
   if(boss){const bw=Math.min(W-40,300),bx=(W-bw)/2;outlined('👑 왕관 흰곰',W/2,80,15,'#fff');rr(bx,90,bw,11,5.5,'rgba(35,50,90,.35)');
@@ -1696,7 +1701,7 @@ const endJoy=e=>{if(joy&&e.pointerId===joy.id)joy=null;};
 ['pointerup','pointercancel','lostpointercapture'].forEach(t=>cvs.addEventListener(t,endJoy));
 const KM={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
 addEventListener('keydown',e=>{if(KM[e.code]){keys[KM[e.code]]=1;e.preventDefault();initAudio();}
-  else if(e.code==='Digit1')upgradeHouse();else if(e.code==='Digit2')upgradeHero();else if(e.code==='Digit3')upgradeTool();else if(e.code==='Digit4')upgradeShoe();else if(e.code==='Digit5')upgradeSpin();else if(e.code==='Space'){e.preventDefault();toggleMode();}else if(e.code==='KeyE'||e.code==='ShiftLeft'){throwWeapons();}else if(e.code==='KeyG'){castHero();}else if(e.code==='KeyV'){blowWhistle();}else if(e.code==='Digit6'){upgradeWhistle();}else if(e.code==='KeyQ'){castMagic(slots[0]);}else if(e.code==='KeyR'){castMagic(slots[1]);}else if(e.code==='KeyF'){castMagic(slots[2]);}});
+  else if(e.code==='Digit1')upgradeHouse();else if(e.code==='Digit2')upgradeHero();else if(e.code==='Digit3')upgradeTool();else if(e.code==='Digit4')upgradeShoe();else if(e.code==='Digit5')upgradeSpin();else if(e.code==='Space'){e.preventDefault();toggleMode();}else if(e.code==='KeyE'||e.code==='ShiftLeft'){throwWeapons();}else if(e.code==='KeyG'){castHero();}else if(e.code==='KeyV'){blowWhistle();}else if(e.code==='Enter'){if(state==='play'&&nextWaveIn>0)nextWaveIn=.01;}else if(e.code==='Digit6'){upgradeWhistle();}else if(e.code==='KeyQ'){castMagic(slots[0]);}else if(e.code==='KeyR'){castMagic(slots[1]);}else if(e.code==='KeyF'){castMagic(slots[2]);}});
 addEventListener('keyup',e=>{if(KM[e.code])keys[KM[e.code]]=0;});
 // 이동 중(다른 손가락이 화면을 누르는 중)에도 버튼이 바로 반응하도록 pointerdown 사용
 function tapBtn(id,fn){const el=$(id);
@@ -1720,6 +1725,7 @@ addEventListener('orientationchange',()=>setTimeout(resize,200));
 tapBtn('bShoe',upgradeShoe);tapBtn('bSpin',upgradeSpin);tapBtn('bWhistle',upgradeWhistle);
 tapBtn('bHouse',upgradeHouse);
 tapBtn('bHero',upgradeHero);
+tapBtn('bFight',()=>{if(state==='play'&&nextWaveIn>0)nextWaveIn=.01;});
 $('retry').addEventListener('click',()=>{initAudio();$('lose').classList.add('hidden');newGame();});
 tapBtn('bTool',upgradeTool);
 tapBtn('bMode',toggleMode);
