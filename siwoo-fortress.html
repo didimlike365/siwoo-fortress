@@ -1332,8 +1332,8 @@ function drawPlayer(){
 }
 /* ---------- 캐릭터 (재사용) ---------- */
 function drawSiu(x,y,face,o){
-  // 시우의 거미 영웅 슈트 (오리지널): 보라 슈트 + 라임 장갑·부츠, 가슴의 큰 거미 문양, 거미 다리 더듬이가 달린 후드
-  const PU='#6b3fd6',PU2='#8a63ee',PUL='#4a2aa0',LI='#8fe04a',LIL='#5da82a';
+  // 시우의 거미 영웅 슈트 (오리지널): 빨강 슈트 + 검정 장갑·부츠·벨트, 가슴의 톡톡이 배지, 거미 다리 더듬이가 달린 후드
+  const PU='#e0302e',PU2='#ff6a5c',PUL='#8f1414',LI='#23232b',LIL='#000000';
   ctx.save();ctx.translate(x,y);ctx.globalAlpha=o.alpha??1;ctx.scale(face*.95,.95);
   const b=o.bob||0,w=o.walk||0;
   for(const [lx,a] of[[-6,w],[6,-w]]){ctx.save();ctx.translate(lx,-22);ctx.rotate(a*.5);rr(-5,0,10,20,4,PU,PUL,1.2);rr(-6,12,13,10,4,LI,LIL,1.2);ctx.restore();}
@@ -1341,9 +1341,11 @@ function drawSiu(x,y,face,o){
   rr(-15,-48-b,30,28,11,PU,PUL,1.5);
   ctx.fillStyle=PU2;ctx.beginPath();ctx.ellipse(-8,-40-b,4,8,-.3,0,Math.PI*2);ctx.fill();
   // 가슴 거미 문양
-  const bx=1,by=-35-b;ctx.strokeStyle=LI;ctx.lineWidth=1.6;ctx.lineCap='round';
-  for(const sd of[-1,1]){line(bx+sd*3,by-2,bx+sd*9,by-8);line(bx+sd*3,by-1,bx+sd*10,by-3);line(bx+sd*3,by+1,bx+sd*10,by+3);line(bx+sd*3,by+2,bx+sd*8,by+8);}
-  ctx.fillStyle=LI;ctx.beginPath();ctx.ellipse(bx,by-3,2.6,2.6,0,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.ellipse(bx,by+2.5,3.4,4.4,0,0,Math.PI*2);ctx.fill();
+  const bx=1,by=-36-b;
+  circ(bx,by,7.5,'#ffffff',LI,1.6);
+  ctx.strokeStyle=LI;ctx.lineWidth=1.1;ctx.lineCap='round';for(const sd of[-1,1])for(const k of[-2,0,2])line(bx+sd*3,by+k*.8,bx+sd*5.8,by+k*1.4);
+  circ(bx,by+.5,3.2,LI);circ(bx-1.2,by,.9,'#ffffff');circ(bx+1.2,by,.9,'#ffffff');
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=.7;ctx.beginPath();ctx.arc(bx,by+1.2,1,.15*Math.PI,.85*Math.PI);ctx.stroke();
   rr(-15,-25-b,30,4,2,LI,LIL,1);
   // 앞팔 + 무기
   const kind=o.weapon||'sword',melee=kind==='sword'||kind==='bigsword'||kind==='axe'||kind==='bigaxe'||kind==='tool';
@@ -1355,10 +1357,10 @@ function drawSiu(x,y,face,o){
   circ(hx,hy,kind==='none'?7:6,LI,LIL,1.5);
   // 후드 + 더듬이
   const hy0=-68-b;
-  ctx.strokeStyle=PUL;ctx.lineWidth=2.4;ctx.lineJoin='round';
-  for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*6,hy0-16);ctx.lineTo(sd*11,hy0-26);ctx.lineTo(sd*16,hy0-24);ctx.stroke();circ(sd*16,hy0-24,2.2,LI);}
+  ctx.strokeStyle=LI;ctx.lineWidth=2.4;ctx.lineJoin='round';
+  for(const sd of[-1,1]){ctx.beginPath();ctx.moveTo(sd*6,hy0-16);ctx.lineTo(sd*11,hy0-26);ctx.lineTo(sd*16,hy0-24);ctx.stroke();circ(sd*16,hy0-24,2.4,LI);circ(sd*15.4,hy0-24.6,.7,'#ffffff');}
   circ(0,hy0,19,PU,PUL,2);
-  for(let i=0;i<4;i++)circ(-9+i*6,hy0-13.5+Math.abs(i-1.5)*1.2,1.7,LI);
+  for(let i=0;i<4;i++){circ(-9+i*6,hy0-13.5+Math.abs(i-1.5)*1.2,1.8,LI);circ(-9.5+i*6,hy0-14+Math.abs(i-1.5)*1.2,.5,'#ffffff');}
   circ(4,hy0+1,13.5,LI);circ(4,hy0+1,12,'#ffdcbc');
   ctx.fillStyle='#5a3a22';ctx.beginPath();ctx.ellipse(4,hy0-6,11.5,6.5,0,Math.PI,0);ctx.fill();
   if(o.hurt){ctx.strokeStyle=INK;ctx.lineWidth=1.8;line(0,hy0-2,3,hy0);line(3,hy0,0,hy0+2);line(11,hy0-2,8,hy0);line(8,hy0,11,hy0+2);}
