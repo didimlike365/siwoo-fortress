@@ -38,6 +38,18 @@ button:focus-visible{outline:3px solid var(--suit);outline-offset:3px}
 .tb{position:absolute;top:10px;width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,.88);font-size:18px;
   box-shadow:0 3px 0 rgba(35,50,90,.25);display:flex;align-items:center;justify-content:center}
 #mute{right:10px}#pause{right:58px}#fs{right:106px}
+#bPets{position:absolute;top:10px;right:202px;height:40px;padding:0 12px;border-radius:20px;background:rgba(255,255,255,.92);font-size:16px;color:#3a2a1a;
+  box-shadow:0 3px 0 rgba(35,50,90,.25);display:flex;align-items:center;gap:4px;font-weight:700}
+#bPets.full{background:#ffe9a8}
+#petMenu{background:rgba(20,28,48,.86)}
+#petMenu .pgrid{display:grid;grid-template-columns:repeat(4,minmax(120px,160px));gap:10px;max-width:100%}
+@media (max-width:640px){#petMenu .pgrid{grid-template-columns:repeat(2,minmax(120px,1fr))}}
+.pcard{background:#fff;border-radius:16px;padding:10px 8px;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:0 4px 0 rgba(35,50,90,.25);border:3px solid transparent;color:#3a2a1a;min-height:120px}
+.pcard .pi{font-size:34px;line-height:1}.pcard b{font-size:15px}.pcard small{font-size:11px;color:#6a5a4a;line-height:1.25}
+.pcard .st{margin-top:auto;font-size:12px;padding:3px 8px;border-radius:10px;background:#eee;color:#777}
+.pcard.on{border-color:#5be37d;background:#f0fff3}.pcard.on .st{background:#5be37d;color:#fff}
+.pcard.locked{opacity:.35}
+#petMenu .phint{color:#fff;font-size:15px;margin:0}
 #shop{position:absolute;left:0;right:0;bottom:0;display:flex;gap:8px;padding:8px 10px 10px;justify-content:center;flex-wrap:wrap}
 body.land #shop{left:10px;right:auto;top:76px;bottom:auto;flex-direction:column;flex-wrap:nowrap;width:176px;padding:0;gap:8px;justify-content:flex-start}
 body.land .sb{flex:none;max-width:none;width:176px;padding:4px 9px}
@@ -119,6 +131,7 @@ body.land .rotate-hint{display:none}
 <body>
 <div id="wrap">
   <canvas id="c"></canvas>
+  <button class="hidden" id="bPets" aria-label="펫 고르기">🐾 <span id="petCnt">0/5</span></button>
   <button class="tb" id="pause" aria-label="잠깐 멈추기">⏸</button>
   <button class="tb" id="mute" aria-label="소리 끄기">🔊</button>
   <button class="tb" id="fs" aria-label="꽉 채우기">⛶</button>
@@ -159,6 +172,7 @@ body.land .rotate-hint{display:none}
     <p>아이폰은 브라우저에서 주소창을 숨길 수 없어요. 사파리 아래쪽 공유 버튼 → <b>홈 화면에 추가</b> 후 홈 화면 아이콘으로 실행하면 주소창 없이 꽉 찬 화면으로 즐길 수 있어요.</p>
     <button class="go" id="fsOk">알겠어요</button>
   </div>
+  <div class="over hidden" id="petMenu"><h2>🐾 함께 갈 펫 고르기</h2><p class="phint" id="petHint"></p><div class="pgrid" id="petGrid"></div><button class="go" id="petClose">닫기</button></div>
   <div class="over hidden" id="paused"><h2>잠깐 쉬는 중</h2><button class="go" id="resume">계속하기</button></div>
   <div class="over hidden" id="win">
     <div class="stars">⭐⭐⭐</div>
@@ -408,7 +422,14 @@ function blowWhistle(){
   for(let i=0;i<7;i++)tone(2300+(i%2)*380,0,.06,'sine',.22,i*.055);tone(2600,2200,.4,'sine',.22,.4);
   for(const e of enemies)if(!e.dead&&e.type==='charge'){e.mode='walk';e.st=0;}
 }
+let siuTrail=[],trailT=0;
 function updateWhistle(dt){
+  // 호루라기 중: 잔상 기록 + 반짝이
+  const p0=player;
+  for(const g of siuTrail)g.life-=dt;siuTrail=siuTrail.filter(g=>g.life>0);
+  if(whistleT>0&&p0){trailT-=dt;
+    if(trailT<=0&&p0.moving){trailT=.05;siuTrail.push({x:p0.x,y:p0.y,face:p0.face,t:p0.t,life:.32,max:.32});if(siuTrail.length>8)siuTrail.shift();}
+    if(parts.length<640&&Math.random()<.35)parts.push({k:'dot',x:p0.x+rand(-22,22),y:p0.y-rand(10,80),vx:rand(-20,20),vy:rand(-60,-20),life:.4,max:.4,r:rand(2,3.5),c:Math.random()<.5?'#fff6b0':'#ffffff'});}
   if(whistleCd>0){whistleCd-=dt;if(whistleCd<=0){whistleCd=0;tone(1320,0,.15,'triangle',.24);}}
   if(whistleT>0){whistleT-=dt;whistleRing-=dt;
     if(whistleRing<=0){whistleRing=.45;addRing(player.x,player.y-35,160,'#ffd34d',.5,4);}
@@ -839,7 +860,7 @@ function newPlayer(){return{x:HX,y:HY+90,hp:90,maxHp:90,speed:140,face:1,dirX:1,
 function newGame(){
   WORLD=WORLD0;player=newPlayer();house={lv:1,hp:0,maxHp:0,shake:0,buildT:0};house.maxHp=houseMaxHp();house.hp=house.maxHp;
   fence={hp:0,max:0,segs:[]};towers=[];enemies=[];shots=[];items=[];traps=[];parts=[];texts=[];snowmen=[];bolts=[];
-  wood=0;coins=0;kills=0;hitstop=0;shakeAmt=0;slowT=0;winT=0;tokAng=0;wave=0;firstDay=true;reviveT=0;waveQueue=[];waveTime=0;battleT=0;pets=[];peas=[];lobs=[];trickle=0;calmT=0;seenKinds=new Set();thrown=[];throwCd=0;clones=[];heroCd=0;twins=[];gemT=0;whistleLv=0;whistleCd=0;whistleT=0;whistleBtn=null;storage=0;relics=[];magics=[];slots=[];$('magicBar').innerHTML='';
+  wood=0;coins=0;kills=0;hitstop=0;shakeAmt=0;slowT=0;winT=0;tokAng=0;wave=0;firstDay=true;reviveT=0;waveQueue=[];waveTime=0;battleT=0;pets=[];petBox=[];peas=[];lobs=[];trickle=0;calmT=0;seenKinds=new Set();thrown=[];throwCd=0;clones=[];heroCd=0;twins=[];gemT=0;siuTrail=[];whistleLv=0;whistleCd=0;whistleT=0;whistleBtn=null;storage=0;relics=[];magics=[];slots=[];$('magicBar').innerHTML='';
   plantTrees();buildDefenses();state='play';startBattle();updateShop();
 }
 const houseMaxHp=()=>160+house.lv*80;
@@ -923,7 +944,7 @@ function upgradeHouse(){
   if(house.lv>=8)return;const c=HOUSE_COST[house.lv-1];
   if(coins<c){poor('bHouse');return;}
   const before=house.hp;
-  coins-=c;house.lv++;house.maxHp=houseMaxHp();house.hp=house.maxHp;house.buildT=.8;house.healT=2;
+  coins-=c;house.lv++;house.maxHp=houseMaxHp();house.hp=Math.min(house.maxHp,before+house.maxHp*.5);house.prevHp=house.hp;house.buildT=.8;house.healT=2; // 새 최대체력의 50%만 회복 (울타리는 새것)
   const healed=Math.round(house.hp-before);
   addText(HX,HY-150,'💚 체력 +'+healed,true,'#7dff9a');
   addRing(HX,HY-30,150,'#5be37d',.6,7);burst(HX,HY-40,18,['#7dff9a','#ffffff','#5be37d']);
@@ -1567,18 +1588,53 @@ const PET_INFO={
   raccoon:{name:'총잡이 너구리',icon:'🦝',size:.5,base:34,tip:'콩알총을 쏴요! 레벨이 오르면 콩알이 커져요'},
   deer:{name:'꽃사슴',icon:'🦌',size:.58,base:40,tip:'뿔로 나무를 쿵쿵 캐서 나무를 5개씩 가져와요'},
 };
-let pets=[];
+let pets=[],petBox=[];const PET_SLOTS=5,PET_ORDER=['cat','dog','capy','duck','mouse','frog','raccoon','deer'];
 const siuAtk=()=>{const o=ORB[player.lvl-1];return Math.max(o.dmg,o.sdmg||0);};
 const petMul=pt=>1+.15*(Math.min(pt.lv,12)-1);
 const pt2sub=t=>t.type==='mouse'?'더 멀리, 더 많이 주워 와요':'친구 여덟이 다 모여서 대신 힘이 세졌어요';
+function petReset(pt){
+  pt.pounce=pt.latch=pt.run=pt.roll=pt.spin2=null;pt.charge=0;pt.fixing=null;pt.job=null;pt.tree=null;pt.wait=0;pt.rest=0;pt.homing=false;pt.butt=0;pt.aim=null;
+  if(pt.fetch&&pt.fetch.claim===pt)pt.fetch.claim=null;pt.fetch=null;
+  for(const it of pt.bag||[]){it.carry=null;it.mag=true;it.t=1;}pt.bag=[];
+}
+function updatePetBtn(){
+  const b=$('bPets');if(!b)return;const n=pets.length+petBox.length;
+  b.classList.toggle('hidden',!(n>0&&(state==='play'||state==='petmenu')));
+  $('petCnt').textContent=pets.length+'/'+PET_SLOTS+(petBox.length?' · 💤'+petBox.length:'');b.classList.toggle('full',pets.length>=PET_SLOTS&&petBox.length>0);
+}
+function togglePet(pt){
+  const i=pets.indexOf(pt);
+  if(i>=0){pets.splice(i,1);petReset(pt);petBox.push(pt);tone(500,300,.12,'sine',.18);}
+  else{if(pets.length>=PET_SLOTS){$('petHint').textContent='자리가 꽉 찼어요! 먼저 한 마리를 쉬게 해 주세요';tone(200,150,.15,'square',.12);return;}
+    petBox.splice(petBox.indexOf(pt),1);petReset(pt);pt.x=player.x+rand(-40,40);pt.y=player.y+20;pt.jump=1;pets.push(pt);tone(700,1000,.1,'sine',.2);}
+  renderPetMenu();updatePetBtn();
+}
+function renderPetMenu(){
+  const g=$('petGrid');g.innerHTML='';const own=pets.concat(petBox);
+  $('petHint').textContent=`함께 가는 펫 ${pets.length}/${PET_SLOTS} · 누르면 함께 가요 / 요새에서 쉬어요`;
+  for(const type of PET_ORDER){const pt=own.find(q=>q.type===type),I=PET_INFO[type],c=document.createElement('button');
+    c.className='pcard'+(pt?(pets.includes(pt)?' on':''):' locked');
+    c.innerHTML=pt?`<span class="pi">${I.icon}</span><b>${I.name} Lv${pt.lv}</b><small>${I.tip}</small><span class="st">${pets.includes(pt)?'✅ 함께 가요':'💤 요새에서 쉬어요'}</span>`
+      :`<span class="pi">❔</span><b>???</b><small>나무를 베면 가끔 나타나요</small><span class="st">아직 못 만났어요</span>`;
+    if(pt)c.addEventListener('click',()=>togglePet(pt));
+    g.appendChild(c);}
+}
+function openPetMenu(){if(state!=='play')return;initAudio();state='petmenu';joy=null;musicPause(true);renderPetMenu();$('petMenu').classList.remove('hidden');}
+function closePetMenu(){if(state!=='petmenu')return;$('petMenu').classList.add('hidden');state='play';musicPause(false);last=performance.now();updatePetBtn();}
+function drawRestingPets(list){ // 쉬는 펫은 요새 옆에서 쿨쿨
+  petBox.forEach((pt,k)=>{const a=Math.PI*.15+k*.5,R=houseR()+26;pt.x=HX+Math.cos(a)*R*(k%2?-1:1);pt.y=HY+10+Math.sin(a)*R*.4;pt.moving=false;pt.face=k%2?1:-1;
+    list.push({y:pt.y,f:()=>{drawPetOne(pt);outlined('💤',pt.x+10,pt.y-PET_INFO[pt.type].size*88-8-(tNow*10+k*3)%8,13,'#ffffff',INK,0);}});});
+}
 function gainPet(x,y){
   // 종류마다 한 마리씩만: 아직 없는 종류 중에서 나오고, 셋 다 있으면 한 마리가 강해져요
-  const all=['cat','dog','capy','duck','mouse','frog','raccoon','deer'],missing=all.filter(t=>!pets.some(p2=>p2.type===t));
+  const all=PET_ORDER,owned=pets.concat(petBox),missing=all.filter(t=>!owned.some(p2=>p2.type===t));
   let msg,sub,type;
   if(missing.length){type=missing[Math.floor(Math.random()*missing.length)];const I=PET_INFO[type];
-    pets.push({type,lv:1,x,y:y-10,face:1,t:rand(0,5),cd:.6,jump:1,pounce:null,latch:null,run:null,roll:null,tick:0});
-    msg=`${I.icon} ${I.name}를 얻었어!`;sub=I.tip;}
-  else{const t=pets[Math.floor(Math.random()*pets.length)];type=t.type;t.lv++;t.jump=1;const TI=PET_INFO[t.type];
+    const np={type,lv:1,x,y:y-10,face:1,t:rand(0,5),cd:.6,jump:1,pounce:null,latch:null,run:null,roll:null,tick:0};
+    if(pets.length<PET_SLOTS){pets.push(np);msg=`${I.icon} ${I.name}를 얻었어!`;sub=I.tip;}
+    else{petBox.push(np);msg=`${I.icon} ${I.name}를 얻었어!`;sub='펫 자리가 꽉 차서 요새에서 쉬어요 · 🐾 버튼에서 바꿔요';}
+    updatePetBtn();}
+  else{const own=pets.concat(petBox),t=own[Math.floor(Math.random()*own.length)];type=t.type;t.lv++;t.jump=1;const TI=PET_INFO[t.type];
     msg=`${TI.icon} ${TI.name}가 더 강해졌어! Lv ${t.lv}`;sub=pt2sub(t);}
   burst(x,y-50,16,['#ffd34d','#ffffff','#f2a24a'],220);addRing(player.x,player.y-30,70,'#ffd34d',.4,5);
   showBanner(msg,sub,2.2);
@@ -2983,9 +3039,21 @@ function drawPlayer(){
     hurt:p.hurt>0,shout:p.chopT>0||attackMode||p.throwT>0||(p.moving&&(p.load||1)<.7),weapon:(attackMode||p.throwT>0)?'none':'tool',toolLv:p.tool};
   if(!attackMode&&p.chopT>0)o.swing=1-p.chopT/p.chopDur;
   if(p.inv>0&&p.hurt<=0&&reviveT<=0&&Math.floor(p.t*18)%2)o.alpha=.55;
+  // 호루라기 잔상
+  for(const g of siuTrail){const k=g.life/g.max;ctx.save();ctx.globalAlpha=.1+.35*k;circ(g.x,g.y-38,28,'rgba(255,220,90,.5)');ctx.restore();
+    drawSiu(g.x,g.y,g.face,{bob:Math.abs(Math.sin(g.t*14))*3,walk:Math.sin(g.t*14),weapon:'none',shout:true,alpha:.12+.4*k});}
+  const zoom=whistleT>0;
+  if(zoom){const pl=.5+.5*Math.sin(tNow*18);ctx.save();ctx.globalAlpha=.28+.22*pl;
+    const g=ctx.createRadialGradient(p.x,p.y-38,6,p.x,p.y-38,48);g.addColorStop(0,'rgba(255,245,170,1)');g.addColorStop(1,'rgba(255,210,60,0)');ctx.fillStyle=g;ctx.beginPath();ctx.arc(p.x,p.y-38,48,0,Math.PI*2);ctx.fill();ctx.restore();}
   drawWoodStack(p,true);
   drawSiu(p.x,p.y,p.face,o);
   drawWoodStack(p,false);
+  if(zoom){ // 반짝반짝: 몸 전체가 밝게 번쩍 + 별
+    if(Math.floor(tNow*10)%2===0){ctx.save();ctx.globalCompositeOperation='lighter';drawSiu(p.x,p.y,p.face,Object.assign({},o,{alpha:.45}));ctx.restore();}
+    for(let i=0;i<3;i++){const a=tNow*4+i*2.09,r=30+Math.sin(tNow*6+i)*6,tw=.5+.5*Math.sin(tNow*14+i*2);
+      star(p.x+Math.cos(a)*r,p.y-40+Math.sin(a)*r*.9,3+tw*4,tNow*3+i,'#fffbe0');}
+    ctx.save();ctx.strokeStyle='rgba(255,230,120,.8)';ctx.lineWidth=2.5;ctx.lineCap='round';
+    for(let i=0;i<3;i++){const yy=p.y-60+i*18,ln=14+Math.sin(tNow*20+i)*5;line(p.x-p.face*(20+i*3),yy,p.x-p.face*(20+i*3+ln),yy);}ctx.restore();}
   const bw=40,hp=clamp(p.hp/p.maxHp,0,1);
   if(hp<1){rr(p.x-bw/2,p.y+8,bw,6,3,'rgba(35,50,90,.3)');rr(p.x-bw/2,p.y+8,Math.max(6,bw*hp),6,3,hp>.35?'#5be37d':'#ff8a5b');}
 }
@@ -3289,6 +3357,7 @@ let last=performance.now();
 let perfT=0,perfN=0,perfSum=0;
 function frame(now){
   const rdt=Math.min(.05,(now-last)/1000);last=now;tNow+=rdt;
+  if(state!==frame.ls){frame.ls=state;updatePetBtn();}
   // 느린 기기면 해상도를 조금 낮춰 부드럽게 유지
   if(state==='play'&&!document.hidden){perfSum+=(now-(frame.prev||now));perfN++;perfT+=rdt;
     if(perfT>1.5){const avg=perfSum/perfN;if(avg>21&&QMAX>.75){QMAX=Math.max(.75,Math.min(QMAX,DPR)-.25);resize();}perfT=0;perfN=0;perfSum=0;}}
@@ -3318,6 +3387,7 @@ function frame(now){
   for(const e of enemies)if(!e.dead&&inView(e.x,e.y))list.push({y:e.y,f:()=>drawEnemy(e)});
   for(const t of towers)list.push({y:t.y,f:()=>drawTower(t)});
   list.push({y:HY,f:()=>{drawHouse();drawHouseFX();}});
+  drawRestingPets(list);
   list.push({y:p.y,f:drawPlayer});for(const tw of twins)list.push({y:tw.y,f:()=>drawTwin(tw)});for(const pt of pets)list.push({y:pt.latch?pt.latch.e.y+1:pt.y,f:()=>drawPetOne(pt)});
   list.sort((a,b)=>a.y-b.y);for(const d of list)d.f();
   drawFenceFront();
@@ -3354,7 +3424,7 @@ const endJoy=e=>{if(joy&&e.pointerId===joy.id)joy=null;};
 const KM={ArrowLeft:'l',KeyA:'l',ArrowRight:'r',KeyD:'r',ArrowUp:'u',KeyW:'u',ArrowDown:'d',KeyS:'d'};
 // 스킬 단축키: Y 던지기 · U 분신술 · I 호루라기 · O/P/H 마법 1~3 · J 모드 바꾸기 · K 바로 싸우기 · L 일시정지
 const SKILL_KEYS={KeyY:()=>throwWeapons(),KeyU:()=>castHero(),KeyI:()=>blowWhistle(),KeyO:()=>castMagic(slots[0]),KeyP:()=>castMagic(slots[1]),KeyH:()=>castMagic(slots[2]),KeyG:()=>castMagic(slots[3]),
-  KeyJ:()=>toggleMode(),KeyK:()=>{if(state==='play'&&nextWaveIn>0)nextWaveIn=.01;},KeyL:()=>{if(state==='play')$('pause').click();else if(state==='pause')$('resume').click();}};
+  KeyJ:()=>toggleMode(),KeyN:()=>{if(state==='play')openPetMenu();else if(state==='petmenu')closePetMenu();},KeyK:()=>{if(state==='play'&&nextWaveIn>0)nextWaveIn=.01;},KeyL:()=>{if(state==='play')$('pause').click();else if(state==='pause')$('resume').click();}};
 const UP_KEYS={Digit1:upgradeHouse,Digit2:upgradeHero,Digit3:upgradeTool,Digit4:upgradeShoe,Digit5:upgradeSpin,Digit6:upgradeWhistle};
 addEventListener('keydown',e=>{
   if(KM[e.code]){keys[KM[e.code]]=1;e.preventDefault();initAudio();return;}
@@ -3396,6 +3466,8 @@ $('start').addEventListener('click',()=>{initAudio();enterFill(false);$('title')
 for(const id of['summer','autumn','winter','station','dino','home'])$('map-'+id).addEventListener('click',()=>{initAudio();startMap(id);});
 $('again').addEventListener('click',()=>{initAudio();$('win').classList.add('hidden');showMapSelect();});
 $('pause').addEventListener('click',()=>{if(state!=='play')return;state='pause';joy=null;musicPause(true);$('paused').classList.remove('hidden');});
+$('bPets').addEventListener('click',ev=>{ev.stopPropagation();openPetMenu();});
+$('petClose').addEventListener('click',closePetMenu);
 $('resume').addEventListener('click',()=>{$('paused').classList.add('hidden');state='play';musicPause(false);last=performance.now();});
 $('mute').addEventListener('click',()=>{muted=!muted;if(master)master.gain.value=muted?0:.5;$('mute').textContent=muted?'🔇':'🔊';$('mute').setAttribute('aria-label',muted?'소리 켜기':'소리 끄기');});
 document.addEventListener('contextmenu',e=>e.preventDefault());
