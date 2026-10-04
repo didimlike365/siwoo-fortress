@@ -1880,7 +1880,7 @@ function update(dt){
   // 파티클 등
   for(const q of parts){q.life-=dt;
     if(q.k==='fly'){const k=1-q.life/q.max;q.x+=(q.tx-q.x)*Math.min(1,dt*10);q.y+=(q.ty-q.y)*Math.min(1,dt*10)-Math.sin(k*Math.PI)*2;}
-    else if(q.k==='gas'){q.x+=q.vx*dt;q.y+=q.vy*dt;const f=Math.pow(.2,dt);q.vx*=f;q.vy*=f;}
+    else if(q.k==='gas'||q.k==='steam'){q.x+=q.vx*dt;q.y+=q.vy*dt;const f=Math.pow(.2,dt);q.vx*=f;q.vy*=f;}
     else if(q.vx!==undefined){q.x+=q.vx*dt;q.y+=q.vy*dt;q.vy+=q.k==='chip'?900*dt:500*dt;q.vx*=.98;if(q.rot!==undefined)q.rot+=dt*10;}}
   parts=parts.filter(q=>q.life>0);
   for(const t of texts){t.t+=dt;t.y+=t.vy*dt;t.vy*=Math.pow(.03,dt);}
@@ -2204,7 +2204,7 @@ const PET_INFO={
   cat:{name:'고양이',icon:'🐱',size:.45,base:40,tip:'근처 적을 휙 할퀴어요'},
   dog:{name:'강아지',icon:'🐶',size:.5,base:40,tip:'적을 물고 쓰러질 때까지 안 놓아요'},
   duck:{name:'청둥오리',icon:'🦆',size:.45,base:34,tip:'5초마다 기를 모아 시우 가슴에서부터 점점 넓게 다섯 바퀴 빙글빙글 베어요'},
-  capy:{name:'카피바라',icon:'🦫',size:.55,base:36,tip:'벌떡 일어나 적에게 뿡! 방귀를 뀌어요. 맞은 적은 멀리 날아가고 독가스에 계속 아파요'},
+  capy:{name:'커피바라',icon:'🦫',size:.55,base:36,tip:'커피잔을 들고 다니다 적에게 뜨거운 커피를 촤악! 뿌려요. 맞은 적은 멀리 밀려나고 앗뜨거! 계속 아파요'},
   mouse:{name:'배낭 생쥐',icon:'🐭',size:.48,base:32,tip:'배낭을 메고 나무랑 돈을 대신 주워 와요'},
   frog:{name:'목수 개구리',icon:'🐸',size:.46,base:30,tip:'요새와 울타리가 다치면 달려가서 뚝딱뚝딱 고쳐요'},
   raccoon:{name:'총잡이 너구리',icon:'🦝',size:.5,base:34,tip:'콩알총을 쏴요! 레벨이 오르면 콩알이 커져요'},
@@ -2619,37 +2619,42 @@ function updatePets(dt){
           addRing(p.x,p.y-20,110,'#fff3b0',.35,5);noise(.4,.35,500,'bandpass',2500);tone(500,1100,.25,'sine',.18);
           addText(pt.x,pt.y-50,'꽤액!!',true,'#9ff0a8');}
         else pt.cd=.3;}
-    }else{ // 카피바라: 적을 보면 벌떡 일어나 엉덩이를 돌리고 뿡! (넉백 + 독가스 도트 데미지)
-      if(pt.fart){const F=pt.fart;F.t+=dt;pt.moving=false;pt.face=-Math.sign(F.dx)||pt.face;
+    }else{ // 커피바라: 적을 보면 후후 불고 커피를 촤악! (넉백 + 앗뜨거 도트 데미지)
+      if(pt.fart){const F=pt.fart;F.t+=dt;pt.moving=false;pt.face=Math.sign(F.dx)||pt.face;
         if(!F.fired&&F.t>=.45){F.fired=true;capyFart(pt,F,m);}
         if(F.t>=1.15){pt.fart=null;pt.cd=Math.max(2.2,4-.2*(pt.lv-1));}
         return;}
       petFollow(pt,i,dt);
       if(pt.cd<=0&&winT<=0){const e=nearestFoe(pt.x,pt.y,230);
-        if(e){if(Math.hypot(e.x-pt.x,e.y-pt.y)>170){pt.cd=.15;const dx=e.x-pt.x,dy=e.y-pt.y,d=Math.hypot(dx,dy)||1;pt.x+=dx/d*120*dt;pt.y+=dy/d*120*dt;pt.moving=true;pt.face=Math.sign(dx)||1;} // 조금 다가가기
-          else{const dx=e.x-pt.x,dy=(e.y-e.r*.5)-(pt.y-12),d=Math.hypot(dx,dy)||1;pt.fart={t:0,dx:dx/d,dy:dy/d,fired:false};pt.face=-Math.sign(dx)||1;
-            addText(pt.x,pt.y-46,'끄응…',false,'#e8d3a0');tone(180,240,.3,'triangle',.08);}}
+        if(e){if(Math.hypot(e.x-pt.x,e.y-pt.y)>170){pt.cd=0;const dx=e.x-pt.x,dy=e.y-pt.y,d=Math.hypot(dx,dy)||1;pt.x+=dx/d*120*dt;pt.y+=dy/d*120*dt;pt.moving=true;pt.face=Math.sign(dx)||1;} // 조금 다가가기
+          else{const dx=e.x-pt.x,dy=(e.y-e.r*.5)-(pt.y-12),d=Math.hypot(dx,dy)||1;pt.fart={t:0,dx:dx/d,dy:dy/d,fired:false};pt.face=Math.sign(dx)||1;
+            addText(pt.x,pt.y-50,'후~ 후~',false,'#f3d9b8');tone(320,620,.18,'triangle',.07);tone(360,700,.14,'triangle',.06,.2);}}
         else pt.cd=.2;}
     }
   });
 }
 const CAPY_PUSH=230; // 시우의 돌진 거리와 같은 만큼 밀어냄
-function capyFart(pt,F,m){
-  const bx=pt.x-pt.face*14,by=pt.y-12,R=175,cosA=Math.cos(.7);
-  SFX.fart&&SFX.fart();shake(4);vib(40);
-  addText(pt.x-pt.face*20,pt.y-58,'뿌웅~!',true,'#b8f07a');
-  for(let i=0;i<14&&parts.length<660;i++){const a=Math.atan2(F.dy,F.dx)+rand(-.55,.55),sp=rand(220,480);
-    parts.push({k:'gas',x:bx,y:by,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp,life:rand(.7,1.1),max:1.1,r:rand(6,10),R:rand(22,36),rot:rand(0,6)});}
+function capyFart(pt,F,m){ // ☕ 커피 촤악! (넉백 + 앗뜨거 도트 데미지)
+  const sc=PET_INFO.capy.size*88/PET_INFO.capy.base,bx=pt.x+pt.face*16*sc,by=pt.y-24*sc,R=175,cosA=Math.cos(.7);
+  noise(.32,.42,1600,'bandpass',500);tone(700,220,.16,'sine',.1);shake(4);vib(40);
+  addText(pt.x+pt.face*24,pt.y-60,'촤악~!',true,'#e0a060');
+  const a0=Math.atan2(F.dy,F.dx);
+  for(let i=0;i<20&&parts.length<660;i++){const a=a0+rand(-.5,.5),sp=rand(260,560);
+    parts.push({k:'coffee',x:bx,y:by,vx:Math.cos(a)*sp,vy:Math.sin(a)*sp-rand(120,260),life:rand(.4,.7),max:.7,r:rand(2.5,5)});}
+  for(let i=0;i<5&&parts.length<660;i++)parts.push({k:'steam',x:bx+rand(-6,6),y:by-6,vx:F.dx*rand(60,140),vy:rand(-70,-30),life:.8,max:.8,r:4,R:14});
+  let first=true;
   for(const e of enemies){if(e.dead)continue;const ex=e.x-bx,ey=(e.y-e.r*.5)-by,d=Math.hypot(ex,ey)||1;
     if(d>R+e.r)continue;if(d>e.r+10&&(ex*F.dx+ey*F.dy)/d<cosA)continue;
-    const nx=ex/d,ny=ey/d,km=(e.boss?.06:e.elite?.25:1)*1.35*(e.kbRes||1);
+    const nx=ex/d,ny=ey/d;
     hurt(e,siuAtk()*.15*m,0,0,0);e.kx+=nx*CAPY_PUSH*8*(e.boss?.12:e.elite?.4:1);e.ky+=ny*CAPY_PUSH*8*(e.boss?.12:e.elite?.4:1); // 거리 ≈ 속도/8
-    e.gas={t:3,tick:.5,dps:siuAtk()*.35*m};}
+    e.gas={t:3,tick:.5,dps:siuAtk()*.35*m};
+    for(let k=0;k<4&&parts.length<660;k++)parts.push({k:'coffee',x:e.x+rand(-10,10),y:e.y-e.r*1.4,vx:rand(-120,120),vy:rand(-220,-80),life:.45,max:.45,r:rand(2,3.5)});
+    if(first){first=false;addText(e.x,e.y-e.r*2.4-14,'앗뜨거!',true,'#ff8a4a');}}
 }
 function gasTick(e,dt){ // 독가스 도트 데미지
   const g=e.gas;g.t-=dt;g.tick-=dt;
-  if(parts.length<640&&Math.random()<dt*6)parts.push({k:'gas',x:e.x+rand(-10,10),y:e.y-e.r*1.6,vx:rand(-15,15),vy:rand(-40,-20),life:.8,max:.8,r:3,R:9,rot:0});
-  if(g.tick<=0){g.tick=.5;const d=Math.max(1,Math.round(g.dps*.5));e.hp-=d;e.flash=.06;addText(e.x+rand(-6,6),e.y-e.r*2-4,d,false,'#9be86a');if(e.hp<=0){die(e);return;}}
+  if(parts.length<640&&Math.random()<dt*6)parts.push({k:'steam',x:e.x+rand(-10,10),y:e.y-e.r*1.8,vx:rand(-15,15),vy:rand(-45,-25),life:.8,max:.8,r:3,R:9});
+  if(g.tick<=0){g.tick=.5;const d=Math.max(1,Math.round(g.dps*.5));e.hp-=d;e.flash=.06;addText(e.x+rand(-6,6),e.y-e.r*2-4,d,false,'#ffa060');if(e.hp<=0){die(e);return;}}
   if(g.t<=0)e.gas=null;
 }
 function drawDog(x,y,face,scale,o={}){
@@ -2707,32 +2712,57 @@ function drawDuck(x,y,face,scale,o={}){ // 🦆 청둥오리: 초록 머리 + �
   else{circ(hx+2,hy-1,1.6,'#1a1a1a');circ(hx+1.6,hy-1.6,.6,'#fff');}
   ctx.restore();
 }
-function drawCapy(x,y,face,scale,o={}){
+function drawCoffeeMug(x,y,ang,fill,t){ // 머그잔(손잡이는 몸 쪽)
+  ctx.save();ctx.translate(x,y);ctx.rotate(ang);
+  ctx.strokeStyle='#5a3d24';ctx.lineWidth=2.2;ctx.beginPath();ctx.arc(-5.5,0,3.4,Math.PI*.5,Math.PI*1.5);ctx.stroke();
+  ctx.strokeStyle='#ffffff';ctx.lineWidth=1.1;ctx.stroke();
+  rr(-5,-6,10,12,2.5,'#ffffff','#5a3d24',1.2);
+  ctx.fillStyle='#e85a4a';ctx.fillRect(-5,-1.2,10,2.4); // 빨간 띠
+  if(fill>0){ctx.fillStyle='#6b3a1a';ctx.beginPath();ctx.ellipse(0,-5.6,4.2,1.4,0,0,Math.PI*2);ctx.fill();ctx.fillStyle='#c98a5a';ctx.beginPath();ctx.ellipse(-1,-5.9,1.6,.5,0,0,Math.PI*2);ctx.fill();}
+  ctx.restore();
+  if(fill>0&&Math.abs(ang)<.6){ctx.save();ctx.strokeStyle='rgba(255,255,255,.75)';ctx.lineWidth=1.2;ctx.lineCap='round'; // 김 모락모락
+    for(let k=0;k<2;k++){const ph=t*3+k*2.1,yy=y-9-((t*14+k*6)%8);ctx.globalAlpha=.8-((t*14+k*6)%8)/10;ctx.beginPath();ctx.moveTo(x-1.5+k*3,yy+5);ctx.quadraticCurveTo(x-3+k*3+Math.sin(ph)*2,yy+2,x-1.5+k*3,yy-1);ctx.quadraticCurveTo(x+Math.sin(ph+1)*2+k*3,yy-3,x-1.5+k*3,yy-5);ctx.stroke();}
+    ctx.restore();}
+}
+function drawCapy(x,y,face,scale,o={}){ // ☕ 커피바라: 두 발로 서서 커피잔을 들고 다니는 느긋한 카피바라
   ctx.save();ctx.translate(x,y);ctx.scale(face*scale,scale);ctx.lineJoin='round';ctx.lineCap='round';
-  const fur='#b0835a',dark='#8a6240',ol='#5a3d24';
-  if(o.roll){ // 몸을 동그랗게 말고 데굴데굴
-    ctx.translate(0,-15);ctx.rotate(o.spin||0);
-    circ(0,0,15,fur,ol,1.6);ctx.strokeStyle=dark;ctx.lineWidth=2;for(let i=0;i<3;i++){ctx.beginPath();ctx.arc(0,0,10-i*3.5,i,i+2.2);ctx.stroke();}
-    circ(9,-9,3,fur,ol,1.1);ctx.fillStyle='#4a3020';ctx.beginPath();ctx.ellipse(13,2,3,2.4,0,0,Math.PI*2);ctx.fill();circ(8,-3,1.4,'#2b2f3a');
-    ctx.restore();return;}
-  const FT=o.fart??-1,up=FT>=0;
-  if(up){ // 벌떡 일어나 엉덩이를 적 쪽으로! 힘주기(부들부들) → 뿡 → 시원~
-    const k=Math.min(1,FT/.25),strain=FT<.45,sx=strain?Math.sin(FT*90)*.9:0,push=FT>=.45&&FT<.75?Math.sin((FT-.45)/.3*Math.PI)*4:0;
-    for(const lx of[-13,-8]){rr(lx-2.6,-8,5.2,8,2.4,dark,ol,1);} // 뒷다리는 땅에
-    ctx.translate(-11+sx+push,-6);ctx.rotate(-1.05*k);ctx.translate(11,6);
-    if(!strain&&FT<.8){ctx.save();ctx.globalAlpha=1-(FT-.45)/.35;for(let i=0;i<3;i++)circ(-20-i*6,-12+i*2,4+i*2,'rgba(160,210,90,.7)');ctx.restore();}}
-  const w=o.moving&&!up?Math.sin(o.t*12):0,bob=up?0:o.moving?Math.abs(Math.sin(o.t*12))*1:Math.sin(o.t*2)*.5;
-  for(const [lx,a] of up?[[6,.5],[11,.8]]:[[-10,w],[-5,-w],[6,-w],[11,w]]){ctx.save();ctx.translate(lx,-8-bob*.5);ctx.rotate(up?a:a*.3);rr(-2.6,0,5.2,8,2.4,dark,ol,1);ctx.restore();}
-  ctx.fillStyle=fur;ctx.strokeStyle=ol;ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(-17,-10-bob);ctx.quadraticCurveTo(-18,-26-bob,-4,-26-bob);ctx.lineTo(10,-26-bob);ctx.quadraticCurveTo(16,-24-bob,16,-14-bob);ctx.lineTo(14,-8-bob);ctx.lineTo(-15,-8-bob);ctx.closePath();ctx.fill();ctx.stroke();
-  const hx=17,hy=-24-bob;
-  rr(hx-6,hy-8,17,14,6,fur,ol,1.5);
-  circ(hx-3,hy-8,2.6,dark,ol,1);
-  if(up&&FT<.45){ctx.strokeStyle='#2b2f3a';ctx.lineWidth=1.2;line(hx,hy-5,hx+3,hy-3);line(hx+3,hy-3,hx,hy-1.4);circ(hx+4,hy+1.5,2.6,'rgba(255,90,90,.55)');} // 끄응 >_<
-  else if(up&&FT<1.2){ctx.strokeStyle='#2b2f3a';ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(hx+2,hy-3,1.8,Math.PI*1.1,Math.PI*1.9);ctx.stroke();circ(hx+4,hy+1.5,2.2,'rgba(255,150,170,.5)');} // 시원~ ^^
-  else{circ(hx+2,hy-3,1.7,'#2b2f3a');circ(hx+1.6,hy-3.5,.6,'#fff');}
-  ctx.fillStyle='#4a3020';ctx.beginPath();ctx.ellipse(hx+9,hy-1,2.4,2,0,0,Math.PI*2);ctx.fill();
-  ctx.strokeStyle='#4a3020';ctx.lineWidth=1;line(hx+9,hy+1,hx+9,hy+3);line(hx+9,hy+3,hx+6.5,hy+4);
-  circ(hx,hy-12,4.2,'#ffb400','#c98a00',1);ctx.strokeStyle='#4a8a2a';ctx.lineWidth=1.2;line(hx,hy-16,hx+2,hy-18);
+  const fur='#b0835a',dark='#8a6240',ol='#5a3d24',belly='#d2ad84';
+  const FT=o.fart??-1,act=FT>=0,wind=act&&FT<.45,throwK=act&&FT>=.45&&FT<.8?(FT-.45)/.35:0,after=act&&FT>=.8;
+  const w=o.moving&&!act?Math.sin(o.t*11):0,bob=o.moving&&!act?Math.abs(Math.sin(o.t*11))*1.6:Math.sin(o.t*2)*.5;
+  const lean=wind?-.18-Math.sin(FT*60)*.02:throwK?.22*(1-throwK*.5):0;
+  // 다리 (뒤뚱뒤뚱)
+  for(const [lx,a] of[[-4,w],[5,-w]]){ctx.save();ctx.translate(lx,-7);ctx.rotate(a*.35);rr(-3,0,6,7.5,2.6,dark,ol,1);ctx.fillStyle='#4a3020';ctx.beginPath();ctx.ellipse(1.2,7,3.6,1.6,0,0,Math.PI*2);ctx.fill();ctx.restore();}
+  ctx.translate(0,-6-bob);ctx.rotate(lean);ctx.translate(0,6);
+  // 뒤쪽 팔
+  ctx.save();ctx.translate(-7,-20);ctx.rotate(.5+w*.3);rr(-2.5,0,5,9,2.5,dark,ol,1);ctx.restore();
+  // 몸통 (통통한 감자형)
+  ctx.fillStyle=fur;ctx.strokeStyle=ol;ctx.lineWidth=1.5;ctx.beginPath();ctx.ellipse(0,-17,11.5,13,0,0,Math.PI*2);ctx.fill();ctx.stroke();
+  ctx.fillStyle=belly;ctx.beginPath();ctx.ellipse(3,-15,6.5,9,0,0,Math.PI*2);ctx.fill();
+  // 머리 (네모난 카피바라 얼굴, 앞으로 쭉)
+  const hx=2,hy=-33;
+  circ(hx-5,hy-6,2.6,dark,ol,1); // 귀
+  rr(hx-8,hy-7,21,13,6,fur,ol,1.5);
+  ctx.fillStyle='#4a3020';ctx.beginPath();ctx.ellipse(hx+11.5,hy-2,2.4,2,0,0,Math.PI*2);ctx.fill(); // 코
+  ctx.strokeStyle='#4a3020';ctx.lineWidth=1;line(hx+11,hy+1,hx+11,hy+3);line(hx+11,hy+3,hx+8.5,hy+4);
+  circ(hx+5,hy+1.8,2.2,'rgba(255,140,150,.45)'); // 볼터치
+  ctx.strokeStyle='#2b2f3a';
+  if(wind){ctx.lineWidth=1.2;line(hx+2,hy-4.5,hx+5,hy-3);line(hx+5,hy-3,hx+2,hy-1.5); // >_< 후후
+    circ(hx+12.5,hy+2.5,1.6,'#f3d9b8','#5a3d24',.6);}
+  else if(after){ctx.lineWidth=1.1;ctx.beginPath();ctx.arc(hx+4,hy-2.5,1.8,Math.PI*1.1,Math.PI*1.9);ctx.stroke();} // 뿌듯 ^^
+  else{ctx.lineWidth=1.4;line(hx+2.4,hy-3,hx+6,hy-3); // 졸린 반쯤 감은 눈 (느긋~)
+    ctx.fillStyle='#2b2f3a';ctx.beginPath();ctx.arc(hx+4.2,hy-3,1.6,0,Math.PI);ctx.fill();}
+  // 앞팔 + 커피잔
+  let mx,my,ma,fill=1;
+  if(wind){mx=-10;my=-36;ma=-.7;} // 머리 뒤로 젖혀 준비
+  else if(throwK>0){const k=Math.min(1,throwK*2.2);mx=-10+k*28;my=-36+k*15;ma=-.7+k*2.45;fill=throwK<.35?1:0;}
+  else if(after){mx=15;my=-19;ma=0;fill=0;}
+  else{mx=14;my=-19+Math.sin(o.t*11)*.6*(o.moving?1:0);ma=o.moving?Math.sin(o.t*11)*.08:0;}
+  ctx.strokeStyle=ol;ctx.lineWidth=6.2;line(4,-22,mx-4,my+1);ctx.strokeStyle=dark;ctx.lineWidth=4;line(4,-22,mx-4,my+1);
+  drawCoffeeMug(mx,my,ma,fill,o.t);
+  circ(mx-4,my+1,2.8,dark,ol,1); // 잔 쥔 앞발
+  if(throwK>0&&throwK<.6){ctx.save();ctx.globalAlpha=1-throwK/.6;ctx.fillStyle='#6b3a1a'; // 촤악 물줄기
+    ctx.beginPath();ctx.moveTo(mx+3,my-4);ctx.quadraticCurveTo(mx+18,my-16,mx+34,my-4);ctx.quadraticCurveTo(mx+20,my-8,mx+3,my+1);ctx.closePath();ctx.fill();
+    for(let k=0;k<4;k++)circ(mx+22+k*5,my-10+k*3,1.8,'#6b3a1a');ctx.restore();}
   ctx.restore();
 }
 function drawPetOne(pt){
@@ -8750,6 +8780,8 @@ function drawParts(){
     else if(q.k==='fly'){ctx.globalAlpha=1;rr(q.x-7,q.y-3,14,6,3,'#b97a45');}
     else if(q.k==='star')star(q.x,q.y,q.r,q.rot,q.c);
     else if(q.k==='bigslash'){drawBigSlash(q,a);}
+    else if(q.k==='coffee'){circ(q.x,q.y,q.r,'#6b3a1a');ctx.globalAlpha=a*.8;circ(q.x-q.r*.3,q.y-q.r*.35,q.r*.4,'#c98a5a');}
+    else if(q.k==='steam'){const k=1-a,r=q.r+(q.R-q.r)*Math.sqrt(k);ctx.globalAlpha=a*.45;circ(q.x,q.y,r,'#ffffff');ctx.globalAlpha=a*.3;circ(q.x+r*.3,q.y-r*.4,r*.6,'#ffe6d0');}
     else if(q.k==='gas'){const k=1-a,r=q.r+(q.R-q.r)*Math.sqrt(k);ctx.globalAlpha=a*.55;circ(q.x,q.y,r,'#9ccf52');ctx.globalAlpha=a*.4;circ(q.x-r*.25,q.y-r*.3,r*.6,'#d4f28a');}
     else if(q.k==='leaf'){ctx.save();ctx.translate(q.x,q.y);ctx.rotate(q.rot+=.2);ctx.fillStyle=q.c;ctx.beginPath();ctx.ellipse(0,0,q.r*1.6,q.r*.8,0,0,Math.PI*2);ctx.fill();ctx.restore();}
     else if(q.k==='claw'){ctx.save();ctx.translate(q.x,q.y);ctx.scale(q.s,q.s);ctx.rotate(-.5);ctx.strokeStyle=`rgba(255,80,80,${a})`;ctx.lineWidth=3;ctx.lineCap='round';const k=(1-a)*6;for(const o of[-6,0,6])line(o-6-k,-10,o+6+k,10);ctx.restore();}
