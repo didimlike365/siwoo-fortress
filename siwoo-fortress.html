@@ -823,7 +823,6 @@ function updateMagic(dt){
       for(const e of enemies){if(e.dead||m.hit.has(e))continue;
         const rx=e.x-m.x,ry=e.y-m.y,along=rx*m.dx+ry*m.dy,side=rx*-m.dy+ry*m.dx;
         if(Math.abs(along)<38+e.r&&Math.abs(side)<130+e.r){m.hit.add(e);magicHit(e,m.dmg,m.dx,m.dy,760,{slow:3});}}
-      m.pud-=dt;if(m.pud<=0){m.pud=.1;for(const sd of[-80,0,80])parts.push({k:'puddle',x:m.x-m.dy*sd,y:m.y+m.dx*sd,R:62,life:3.5,max:3.5,rot:rand(0,3)});}
       if(parts.length<650)for(let i=0;i<3;i++){const sd=rand(-130,130);parts.push({k:'dot',x:m.x-m.dy*sd,y:m.y+m.dx*sd,vx:m.dx*120,vy:m.dy*120-60,life:.4,max:.4,r:rand(3,6),c:Math.random()<.5?'#bfe6ff':'#ffffff'});}
     }else if(m.k==='firering'){
       const p=player;m.ang+=5*dt;if(m.t>=m.life)m.done=true;
@@ -839,7 +838,6 @@ function updateMagic(dt){
       const p=player,k=Math.min(1,m.t/m.dur),r=m.R0+(m.R1-m.R0)*(1-(1-k)*(1-k));m.r=r;m.cx=p.x;m.cy=p.y-10;
       for(const e of enemies){if(e.dead||m.hit.has(e))continue;const ex=e.x-p.x,ey=e.y-p.y,d=Math.hypot(ex,ey)||1;
         if(d<r+e.r){m.hit.add(e);magicHit(e,m.dmg,ex/d,ey/d,620,{slow:3});}}
-      while(r>=m.pudAt&&m.pudAt<=m.R1){const n=Math.round(m.pudAt/22);for(let i=0;i<n;i++){const a=i/n*Math.PI*2+m.pudAt;parts.push({k:'puddle',x:p.x+Math.cos(a)*m.pudAt,y:p.y+Math.sin(a)*m.pudAt*.8,R:48,life:3.5,max:3.5,rot:rand(0,3)});}m.pudAt+=120;}
       if(parts.length<650)for(let i=0;i<6;i++){const a=rand(0,Math.PI*2);parts.push({k:'dot',x:p.x+Math.cos(a)*r,y:p.y-10+Math.sin(a)*r*.8,vx:Math.cos(a)*120,vy:Math.sin(a)*90-60,life:.4,max:.4,r:rand(3,6),c:Math.random()<.5?'#bfe6ff':'#ffffff'});}
       if(k>=1)m.done=true;
     }else if(m.k==='gust'){
