@@ -2098,6 +2098,7 @@ function spawnEnemy(type,a){
   const e={type,x:HX+Math.cos(a)*r+rand(-40,40),y:HY+Math.sin(a)*r+rand(-40,40),r:T.r,hp:T.hp*hpMul,maxHp:T.hp*hpMul,
     speed:rand(T.sp[0],T.sp[1])*(1+wave*.08+battleT*.0005),tier:wave,dmg:T.dmg,dps:T.dps*1.2,coin:T.coin,fly:!!T.fly,elite:!!T.elite,boss:!!T.boss,
     kx:0,ky:0,flash:0,sq:0,slow:0,trap:0,tokCd:0,t:rand(0,5),face:1,mode:'walk',st:0,atk:false,dead:false,kbRes:T.kbRes||1,chargeIn:rand(2.5,4),zig:rand(0,6)};
+  if(!e.boss){e.r0=e.r;e.r*=MOB_SC;} // 🧟 뱀서 느낌: 보스 빼고 몹은 절반 크기
   enemies.push(e);
   const KD=TH().kind;if(KD[type]&&!seenKinds.has(type)){seenKinds.add(type);if(seenKinds.size>1)setTimeout(()=>{if(state==='play')showBanner(`${KD[type].icon} ${KD[type].name} 등장!`,KD[type].tip,2.2);},400);}
   if(e.boss||e.elite||type==='big'){if(e.boss||e.elite||Math.random()<.35){SFX.roar(e.boss||e.elite);}}
@@ -10129,14 +10130,19 @@ function drawEnemyBar(e){
   const tough=e.type==='tank'||e.type==='giant'||e.elite,k=Math.max(0,e.hp/e.maxHp);
   if(k>=1&&!tough)return;
   if(e.hpLag==null||e.hpLag<k)e.hpLag=k;else e.hpLag=Math.max(k,e.hpLag-.9/60);
-  const box=sprBox[mapId+(REAL()?'R':'')+'|'+(e.type==='thrower'?'snow':e.type)],top=box?box.y0+4:-e.r*3;
-  const w=e.elite?54:tough?42:Math.max(26,e.r*2.2),h=e.elite?7:5.5,x=e.x-w/2,y=e.y+top-h-4;
+  const box=sprBox[mapId+(REAL()?'R':'')+'|'+(e.type==='thrower'?'snow':e.type)],top=box?(box.y0+4)*mobSc(e):-e.r*3;
+  const w=e.elite?40:tough?32:Math.max(22,e.r*2.2),h=e.elite?7:5.5,x=e.x-w/2,y=e.y+top-h-4;
   rr(x-1.5,y-1.5,w+3,h+3,(h+3)/2,'rgba(30,30,40,.55)');
   if(e.hpLag>k)rr(x,y,w*e.hpLag,h,h/2,'rgba(255,255,255,.9)');
   if(k>0)rr(x,y,Math.max(h,w*k),h,h/2,e.flash>0?'#ffffff':k>.5?'#5be37d':k>.25?'#ffc23a':'#ff5a3a');
   if(e.elite)outlined('★',x-8,y+h/2,11,'#ffd34d',INK,3);
 }
-function drawEnemy(e){if(e.type==='thrower'&&(mapId==='muryeong'||mapId==='soccer')&&!REAL()){if(!e.ko)throwerRing(e);const fn=mapId==='soccer'?drawSoccerFoe:drawTomb;if(sprOK(e))drawSpr(e,fn);else fn(e);drawThrowerProp(e);return;}if(e.type==='thrower'){if(!e.ko)throwerRing(e);const c=Object.assign({},e,{type:'snow'});drawEnemy(c);drawThrowerProp(e);return;}const st=TH().style;
+const MOB_SC=.5,mobSc=e=>e.boss?1:MOB_SC;
+function mobBegin(e){const sc=mobSc(e);if(sc===1)return null;const r=e.r;if(e.r0)e.r=e.r0;ctx.save();ctx.translate(e.x,e.y);ctx.scale(sc,sc);ctx.translate(-e.x,-e.y);return r;}
+function mobEnd(e,r){if(r===null)return;ctx.restore();e.r=r;}
+function drawEnemy(e){const r=mobBegin(e);drawEnemy0(e);mobEnd(e,r);}
+function drawMob(e){const r=mobBegin(e);drawEnemy0(e);drawFrozen(e);drawScorch(e);mobEnd(e,r);drawEnemyBar(e);}
+function drawEnemy0(e){if(e.type==='thrower'&&(mapId==='muryeong'||mapId==='soccer')&&!REAL()){if(!e.ko)throwerRing(e);const fn=mapId==='soccer'?drawSoccerFoe:drawTomb;if(sprOK(e))drawSpr(e,fn);else fn(e);drawThrowerProp(e);return;}if(e.type==='thrower'){if(!e.ko)throwerRing(e);const c=Object.assign({},e,{type:'snow'});drawEnemy0(c);drawThrowerProp(e);return;}const st=TH().style;
   if(REAL()&&RX().enemy&&e.type!=='vac'){const fn=RX().enemy;if(sprOK(e)){drawSpr(e,fn);return;}fn(e);return;}
   if(sprOK(e)){drawSpr(e,st==='soccer'?drawSoccerFoe:st==='tomb'?drawTomb:st==='invader'?drawInvader:st==='halloween'?drawHalloween:st==='ajussi'?drawAjussi:st==='reaper'?drawReaper:st==='toy'?drawToy:st==='dino'?drawDino:st==='city'?drawCity:st!=='bear'?drawHuman:drawBear);return;}if(st==='tomb'){drawTomb(e);return;}if(st==='soccer'){drawSoccerFoe(e);return;}if(st==='invader'){drawInvader(e);return;}if(st==='halloween'){drawHalloween(e);return;}if(st==='ajussi'){drawAjussi(e);return;}if(st==='reaper'){drawReaper(e);return;}if(st==='toy'){drawToy(e);return;}if(st==='dino'){drawDino(e);return;}if(st==='city'){drawCity(e);return;}if(st!=='bear'){drawHuman(e);return;}drawBear(e);}
 function drawBear(e){
@@ -10231,7 +10237,8 @@ function drawBear(e){
   if(e.mode==='wind'&&!e.ko){const k=1+Math.sin(tNow*20)*.12;ctx.save();ctx.translate(e.x,e.y-hop-52*sc);ctx.scale(k,k);
     circ(0,0,11,'#ff5a5a','#ffffff',2.5);outlined('!',0,1,17,'#ffffff','#ff5a5a',0);ctx.restore();}
 }
-function drawSnowman(s){
+function drawSnowman(s){if(s.boss)return drawSnowman0(s);ctx.save();ctx.translate(s.x,s.y);ctx.scale(MOB_SC,MOB_SC);ctx.translate(-s.x,-s.y);drawSnowman0(s);ctx.restore();}
+function drawSnowman0(s){
   // 풀썩 쓰러짐: 0~0.3초 다리가 꺾이며 제자리에 주저앉듯 엎드림, 착지 때 살짝 눌림, 2초 뒤 0.5초 동안 사라짐
   const k=Math.min(1,s.t/.3),fall=k<1?1-(1-k)*(1-k):1,bounce=s.t>.3&&s.t<.48?Math.sin((s.t-.3)/.18*Math.PI)*.35:0;
   const a=s.t>2?Math.max(0,1-(s.t-2)/.5):1;
@@ -10240,7 +10247,7 @@ function drawSnowman(s){
   shadow(s.x,s.y,24*sc,.22*a);
   if(s.air&&(s.z>0||s.rot)){ctx.translate(s.x,s.y-(s.z||0)-14*sc);ctx.rotate(s.rot||0);ctx.translate(-s.x,-s.y+14*sc);}
   const e={type:s.type,x:s.x,y:s.y,face:s.face,t:0,speed:0,tier:s.tier,elite:s.elite,boss:s.boss,sq:bounce,flash:0,ko:true,collapse:fall};
-  drawEnemy(e);
+  drawEnemy0(e);
   ctx.restore();
   const dino=TH().style==='dino',city=TH().style==='city'||TH().style==='toy'||TH().style==='reaper'||TH().style==='ajussi'||TH().style==='halloween'||TH().style==='invader'||dino,hum=TH().style!=='bear'&&!city,hsc={snow:.9,fast:.72,bat:.8,big:1.15,charge:.95,tank:1.25,giant:1.35,boss:2.45}[s.type]||1;
   if(s.t>.35&&s.t<2){const cx=dino?s.x+s.face*14*hsc:city?s.x+s.face*3*hsc:hum?s.x+s.face*56*hsc:s.x+s.face*32*sc,cy=city?s.y-26*hsc:hum?s.y-14*hsc:s.y-30*sc;for(let i=0;i<3;i++){const an=tNow*5+i*2.1;
@@ -10337,7 +10344,7 @@ function frame(now){
   for(const s of snowmen)drawSnowman(s);
   const list=[];
   for(const t of trees)if(inView(t.x,t.y,120))list.push({y:t.y,f:()=>drawTree(t)});
-  for(const e of enemies)if(!e.dead&&inView(e.x,e.y))list.push({y:e.y,f:()=>{drawEnemy(e);drawFrozen(e);drawScorch(e);drawEnemyBar(e);}});
+  for(const e of enemies)if(!e.dead&&inView(e.x,e.y))list.push({y:e.y,f:()=>drawMob(e)});
   for(const t of towers)list.push({y:t.y,f:()=>drawTower(t)});
   list.push({y:HY,f:()=>{drawHouse();drawHouseFX();}});
   drawRestingPets(list);
