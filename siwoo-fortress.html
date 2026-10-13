@@ -171,6 +171,12 @@ body.short .go{padding:8px 26px;font-size:18px}
 body.short #wpnSel .wgrid{gap:10px}body.short .wcard{width:200px;padding:8px 10px;gap:3px}body.short .wcard .wi{font-size:34px}body.short .wcard b{font-size:17px}body.short .wcard small{font-size:12px}
 /* 실감나게 스위치 */
 .mapHead{display:flex;align-items:center;gap:14px;flex-wrap:wrap;justify-content:center}
+#diffSel{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;align-items:center;margin:6px 0 0}
+#diffSel .dl{color:#fff;font-weight:700;font-size:14px;text-shadow:0 1px 0 rgba(0,0,0,.4)}
+#diffSel button{border:0;border-radius:999px;padding:6px 12px;font-weight:700;font-size:14px;background:rgba(255,255,255,.85);color:#23325a;box-shadow:0 3px 0 rgba(35,50,90,.25);cursor:pointer}
+#diffSel button.on{color:#fff;transform:translateY(-1px)}
+#diffSel button.on[data-d=easy]{background:#4cc46a}#diffSel button.on[data-d=normal]{background:#3a8ae0}#diffSel button.on[data-d=hard]{background:#f07a1a}#diffSel button.on[data-d=hell]{background:#c8283c}
+body.short #diffSel{margin:3px 0 0;gap:4px}body.short #diffSel button{padding:3px 9px;font-size:12px}
 .fxsw{display:inline-flex;align-items:center;gap:8px;cursor:pointer;background:rgba(255,255,255,.9);border-radius:999px;padding:6px 14px 6px 8px;box-shadow:0 3px 0 rgba(35,50,90,.25);font-weight:700;color:#23325a;user-select:none}
 .fxsw input{position:absolute;opacity:0;width:1px;height:1px}
 .fxsw .trk{width:46px;height:26px;border-radius:13px;background:#b8c2cc;position:relative;transition:background .2s}
@@ -225,6 +231,8 @@ body.short #wpnSel .wgrid{gap:10px}body.short .wcard{width:200px;padding:8px 10p
     <div class="mapHead"><h2>맵 고르기</h2>
       <label class="fxsw" title="태블릿이 느리면 꺼 주세요"><input type="checkbox" id="realSw"><span class="trk"><span class="knob"></span></span><span class="lbl">✨ 실감나게 <b id="realTxt">ON</b></span></label></div>
     <p class="fxnote" id="realNote">그림자·조명·질감이 들어간 그림이에요. 느리면 끄세요!</p>
+    <div id="diffSel"><span class="dl">난이도</span><button data-d="easy">🙂 쉬움</button><button data-d="normal">😤 보통</button><button data-d="hard">🔥 어려움</button><button data-d="hell">💀 최고 어려움</button></div>
+    <p class="fxnote" id="diffNote"></p>
     <div id="mapList">
       <button class="mapc summer" id="map-summer"><span class="big">☀️🐻‍❄️</span><b>여름 숲</b><span>흰곰 무리</span><em class="lock"></em></button>
       <button class="mapc autumn" id="map-autumn"><span class="big">🍂🦹</span><b>가을 계곡</b><span>도둑단</span><em class="lock"></em></button>
@@ -1930,6 +1938,14 @@ function startBattle(){
   showBanner('🛡️ 다음 전투 준비 시간!',`30초 뒤에 ${TH().foe}${(c=>c>=0xAC00&&c<=0xD7A3&&(c-0xAC00)%28?'이':'가')(TH().foe.charCodeAt(TH().foe.length-1))} 몰려와요`,2.4);
   SFX.warn();setMusic('night');setMode(false,true);updateShop();
 }
+/* 🎚️ 난이도: 쉬움(그대로) · 보통(몹 ×3) · 어려움(몹 ×5) · 최고 어려움(보스 ×2, 몹 ×7) — 보스 제외 */
+const DIFF={easy:{name:'쉬움',m:1,b:1,note:'지금까지 하던 그대로예요'},normal:{name:'보통',m:3,b:1,note:'보스 빼고 몹이 3배로 몰려와요!'},
+  hard:{name:'어려움',m:5,b:1,note:'보스 빼고 몹이 5배! 뱀서처럼 우르르~'},hell:{name:'최고 어려움',m:7,b:2,note:'보스가 2배, 몹은 7배!! 진짜 어려워요'}};
+let diff='easy';try{const d=localStorage.getItem('siwoo-diff');if(DIFF[d])diff=d;}catch(_){}
+const MOB_CAP=260; // 한꺼번에 화면에 있을 수 있는 몹 수 (넘으면 잠깐 기다렸다 나옴)
+function setDiff(d){if(!DIFF[d])return;diff=d;try{localStorage.setItem('siwoo-diff',d);}catch(_){}
+  for(const b of document.querySelectorAll('#diffSel button'))b.classList.toggle('on',b.dataset.d===d);
+  const n=$('diffNote');if(n)n.textContent=DIFF[d].note;}
 function launchWave(n){
   const nd=n<3?1:n<6?2:3,base=rand(0,Math.PI*2);
   let dirs=Array.from({length:nd},(_,i)=>base+i*Math.PI*2/nd+rand(-.4,.4));
@@ -1947,6 +1963,9 @@ function launchWave(n){
   if(n>=7)waveQueue.push({type:'giant',at:waveTime+t*.6,dir:dirs[nd-1]});
   if(n>=11)waveQueue.push({type:'giant',at:waveTime+t*.8,dir:dirs[0]});}
   if(BOSS_WAVES.includes(n)){waveQueue.push({type:'boss',at:waveTime+3,dir:dirs[0]});if(n>=10)waveQueue.push({type:'boss',at:waveTime+7,dir:dirs[0]+Math.PI});}
+  {const D=DIFF[diff]||DIFF.easy,base=waveQueue.filter(q=>q.at>=waveTime);
+    if(D.m>1)for(const q of base){if(q.type==='boss')continue;for(let k=1;k<D.m;k++)waveQueue.push({type:q.type,at:q.at+k*rand(.12,.4),dir:q.dir+rand(-.35,.35),weak:q.weak});}
+    if(D.b>1)for(const q of base){if(q.type!=='boss')continue;for(let k=1;k<D.b;k++)waveQueue.push({type:'boss',at:q.at+2+k,dir:q.dir+Math.PI*k/D.b*2});}}
   waveQueue.sort((a,b)=>a.at-b.at);
   const boss=BOSS_WAVES.includes(n);
   showBanner(boss?'👹 보스 습격!':`⚔️ ${n}번째 습격!`,n<LAST_WAVE?'쉴 틈이 없어!':'마지막 습격이야!',2);
@@ -2282,9 +2301,9 @@ function update(dt){
     waveTime+=dt;battleT+=dt;
     if(nextWaveIn>0){nextWaveIn-=dt;
       if(nextWaveIn<=0){nextWaveIn=0;wave++;launchWave(wave);setMode(true,true);updateShop();}}
-    else if(waveQueue.length&&!BOSS_WAVES.includes(wave)){trickle+=dt*(.2+battleT*.004)*.8;
+    else if(waveQueue.length&&!BOSS_WAVES.includes(wave)){trickle+=dt*(.2+battleT*.004)*.8*(DIFF[diff]||DIFF.easy).m;
       while(trickle>=1){trickle--;const r=Math.random();spawnEnemy(r<.35?'fast':(wave>=2&&r<.55)?'bat':'snow',mapId==='station'?roadAngle():rand(0,Math.PI*2));}}
-    while(waveQueue.length&&waveQueue[0].at<=waveTime){const q=waveQueue.shift();spawnEnemy(q.type,q.dir+(mapId==='station'?rand(-.04,.04):rand(-.25,.25)));if(q.weak){const m=enemies[enemies.length-1];m.hp=m.maxHp=m.maxHp*.4;m.coin=1;m.weak=true;}}
+    while(waveQueue.length&&waveQueue[0].at<=waveTime&&(waveQueue[0].type==='boss'||enemies.length<MOB_CAP)){const q=waveQueue.shift();spawnEnemy(q.type,q.dir+(mapId==='station'?rand(-.04,.04):rand(-.25,.25)));if(q.weak){const m=enemies[enemies.length-1];m.hp=m.maxHp=m.maxHp*.4;m.coin=1;m.weak=true;}}
     const alive=enemies.some(e=>!e.dead);
     if(nextWaveIn<=0&&wave>0&&!waveQueue.length&&!alive){
       if(wave>=LAST_WAVE){winT=2.4;slowT=1.2;setMusic('off');setTimeout(()=>SFX.clear(),300);}
@@ -2611,7 +2630,7 @@ function drawWeather(dt){
     else circ(q.x,q.y,2.2*q.s,'rgba(255,255,255,.9)');}
 }
 function showMapSelect(){
-  syncRealSw();
+  syncRealSw();setDiff(diff);
   for(const id of['summer','autumn','winter','station','dino','home','daycare','boramae','bus','jinju','muryeong','soccer']){const b=$('map-'+id),open=mapOpen(id);b.classList.toggle('locked',!open);b.querySelector('.lock').textContent=cleared[id]?'⭐ 클리어!':'';}
   $('mapSel').classList.remove('hidden');
 }
@@ -10448,7 +10467,7 @@ $('again').addEventListener('click',()=>{initAudio();$('win').classList.add('hid
 $('pause').addEventListener('click',()=>{if(state!=='play')return;state='pause';joy=null;musicPause(true);$('paused').classList.remove('hidden');});
 $('bPets').addEventListener('click',ev=>{ev.stopPropagation();openPetMenu();});
 $('petClose').addEventListener('click',closePetMenu);
-$('wMelee').addEventListener('click',()=>chooseWeapon('melee'));$('wGun').addEventListener('click',()=>chooseWeapon('gun'));$('wWiz').addEventListener('click',()=>chooseWeapon('wiz'));
+$('wMelee').addEventListener('click',()=>chooseWeapon('melee'));$('wGun').addEventListener('click',()=>chooseWeapon('gun'));for(const b of document.querySelectorAll('#diffSel button'))b.addEventListener('click',()=>{initAudio();setDiff(b.dataset.d);tone(b.dataset.d==='hell'?220:660,b.dataset.d==='hell'?110:990,.12,'triangle',.12);});$('wWiz').addEventListener('click',()=>chooseWeapon('wiz'));
 $('resume').addEventListener('click',()=>{$('paused').classList.add('hidden');state='play';musicPause(false);last=performance.now();});
 $('mute').addEventListener('click',()=>{muted=!muted;if(master)master.gain.value=muted?0:.5;$('mute').textContent=muted?'🔇':'🔊';$('mute').setAttribute('aria-label',muted?'소리 켜기':'소리 끄기');});
 document.addEventListener('contextmenu',e=>e.preventDefault());
